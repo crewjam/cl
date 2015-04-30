@@ -1,14 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 func Merge() {
 	issueNumber := CurrentIssue()
+	branchName := CurrentBranch()
 	fmt.Printf("merging issue %d to master", issueNumber)
 
 	var commitProblems = []string{}
@@ -25,6 +29,7 @@ func Merge() {
 	if err != nil {
 		log.Fatalf("get branch: %s", err)
 	}
+	fmt.Printf("%#v\n", branchInfo)
 	remoteCurrentSHA := branchInfo["commit"].(map[string]interface{})["sha"].(string)
 	if currentSHA != remoteCurrentSHA {
 		commitProblems = append(commitProblems,
@@ -33,25 +38,10 @@ func Merge() {
 	}
 
 	// Check for a +1
-	commentsInfo, err := GithubApi("GET", fmt.Sprintf("/repos/%s/issues/%d/comments",
-		GithubRepo(), issueNumber), nil)
+	hasApproval, err := HasApproval(issueNumber)
 	if err != nil {
-		log.Fatalf("get comments: %s", err)
+		log.Fatalf("get issue comments: %s", err)
 	}
-	fmt.Printf("commentsInfo: %q\n", commentsInfo)
-	hasApproval := false
-	/*
-		for _, ci := range commentsInfo.([]interface{}) {
-			commentInfo := ci.(map[string]interface{})
-			body := commentInfo["body"].(string)
-			if strings.Contains(body, ":+1:") {
-				hasApproval = true
-			}
-			if strings.Contains(body, "lgtm") {
-				hasApproval = true
-			}
-		}
-	*/
 	if !hasApproval {
 		commitProblems = append(commitProblems,
 			fmt.Sprintf("couldn't find a :+1: or an lgtm in any comment"))
@@ -96,9 +86,41 @@ func Merge() {
 		os.Exit(1)
 	}
 
-	// TODO(ross): close pull request and remove labels
-	// TODO(ross): remove branch remotely
-	// TODO(ross): remove branch locally
+	// Remove the wip, needs-refactor and needs-review labels
+	func() {
+		issueResp, err := GithubApi("GET", fmt.Sprintf("/repos/%s/issues/%d",
+			GithubRepo(), issueNumber), nil)
+		if err != nil {
+			log.Printf("fetch issue: %s", err)
+			return
+		}
+		// adjust labels: remove the needs-refactor, wip labels, add needs-review
+		newLabels := []string{}
+		for _, l := range issueResp["labels"].([]interface{}) {
+			label := l.(map[string]interface{})
+			if label["name"] == "wip" {
+				continue
+			}
+			if label["name"] == "needs-refactor" {
+				continue
+			}
+			if label["name"] == "needs-review" {
+				continue
+			}
+			newLabels = append(newLabels, label["name"].(string))
+		}
+		_, err = GithubApi("PATCH",
+			fmt.Sprintf("/repos/%s/issues/%d", GithubRepo(), issueNumber),
+			M{"labels": newLabels})
+		if err != nil {
+			fmt.Printf("updating issue labels: %s", err)
+		}
+	}()
+
+	// Delete the branch remotely
+	_, _ = GithubApi("DELETE", fmt.Sprintf("/repos/%s/git/refs/heads/%s",
+		GithubRepo(), branchName), nil)
+	Run("git", "branch", "-D", branchName)
 }
 
 func CheckWorkingDirectoryClean() error {
@@ -116,4 +138,41 @@ func CheckWorkingDirectoryClean() error {
 		return fmt.Errorf("There are untracked files")
 	}
 	return nil
+}
+
+type GithubIssueComment struct {
+	Body string `json:"body"`
+}
+
+func HasApproval(issueNumber int64) (bool, error) {
+	req, err := http.NewRequest("GET",
+		fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/comments", GithubRepo(), issueNumber),
+		nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Authorization", "token "+GithubToken())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	if resp.StatusCode > 400 {
+		return false, err
+	}
+
+	comments := []GithubIssueComment{}
+	if err := json.NewDecoder(resp.Body).Decode(&comments); err != nil {
+		return false, err
+	}
+
+	for _, comment := range comments {
+		if strings.Contains(comment.Body, ":+1:") {
+			return true, nil
+		}
+		if strings.Contains(comment.Body, "lgtm") {
+			return true, nil
+		}
+	}
+	return false, nil
 }

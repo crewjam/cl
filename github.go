@@ -87,7 +87,7 @@ func GithubApi(method string, uri string, requestBody map[string]interface{}) (m
 		return nil, err
 	}
 	if resp.StatusCode > 400 {
-		return nil, err
+		return nil, fmt.Errorf("%s: %s", uri, resp.Status)
 	}
 
 	body := map[string]interface{}{}
