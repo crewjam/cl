@@ -5,24 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strings"
 )
-
-func RevParse(rev string) string {
-	buf, err := exec.Command("git", "rev-parse", rev).CombinedOutput()
-	if err != nil {
-		log.Fatalf("git rev-parse %s: %s", rev, err)
-	}
-	return strings.TrimSpace(string(buf))
-}
-
-func MergeBase(a, b string) string {
-	buf, err := exec.Command("git", "merge-base", a, b).CombinedOutput()
-	if err != nil {
-		log.Fatalf("git merge-base %s %s: %s", a, b, err)
-	}
-	return strings.TrimSpace(string(buf))
-}
 
 func Merge() {
 	issueNumber := CurrentIssue()
@@ -51,23 +34,23 @@ func Merge() {
 
 	// Check for a +1
 	commentsInfo, err := GithubApi("GET", fmt.Sprintf("/repos/%s/issues/%d/comments",
-			GithubRepo(), issueNumber), nil)
+		GithubRepo(), issueNumber), nil)
 	if err != nil {
 		log.Fatalf("get comments: %s", err)
 	}
 	fmt.Printf("commentsInfo: %q\n", commentsInfo)
 	hasApproval := false
 	/*
-	for _, ci := range commentsInfo.([]interface{}) {
-		commentInfo := ci.(map[string]interface{})
-		body := commentInfo["body"].(string)
-		if strings.Contains(body, ":+1:") {
-			hasApproval = true
+		for _, ci := range commentsInfo.([]interface{}) {
+			commentInfo := ci.(map[string]interface{})
+			body := commentInfo["body"].(string)
+			if strings.Contains(body, ":+1:") {
+				hasApproval = true
+			}
+			if strings.Contains(body, "lgtm") {
+				hasApproval = true
+			}
 		}
-		if strings.Contains(body, "lgtm") {
-			hasApproval = true
-		}
-	}
 	*/
 	if !hasApproval {
 		commitProblems = append(commitProblems,
@@ -76,7 +59,7 @@ func Merge() {
 
 	// Check that we have a passed the tests
 	statusInfo, err := GithubApi("GET", fmt.Sprintf("/repos/%s/commits/%s/status",
-			GithubRepo(), currentSHA), nil)
+		GithubRepo(), currentSHA), nil)
 	if err != nil {
 		log.Fatalf("get pull request state: %s", err)
 	}
@@ -84,7 +67,7 @@ func Merge() {
 		commitProblems = append(commitProblems,
 			fmt.Sprintf("integration status is %s (%d builders)",
 				statusInfo["state"].(string),
-				int(statusInfo["total_count"].(float64)) ))
+				int(statusInfo["total_count"].(float64))))
 	}
 
 	// Check that the commit can be merged fast-forward without a problem.
@@ -117,7 +100,6 @@ func Merge() {
 	// TODO(ross): remove branch remotely
 	// TODO(ross): remove branch locally
 }
-
 
 func CheckWorkingDirectoryClean() error {
 	if err := exec.Command("git", "diff", "--exit-code").Run(); err != nil {

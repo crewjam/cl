@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -32,6 +34,35 @@ func githubToken() string {
 		os.Exit(1)
 	}
 	return token
+}
+
+func GithubRepo() string {
+	buf, err := exec.Command("git", "config", "--local", "--get", "github.repo").CombinedOutput()
+	if err == nil {
+		return string(buf)
+	}
+
+	buf, err = exec.Command("git", "config", "--local", "--get", "remote.origin.url").CombinedOutput()
+	if err == nil {
+		matches := regexp.MustCompile(`^git@github.com:(.*).git\n$`).FindAllStringSubmatch(string(buf), -1)
+		if matches != nil && len(matches) > 0 {
+			return matches[0][1]
+		}
+	}
+
+	fmt.Printf("Could not determine the github repo name for this repo.\n")
+	fmt.Printf("Please specify it with something like:\n")
+	fmt.Printf("git config --local --set github.repo YOURUSER/YOURREPO\n")
+	os.Exit(1)
+	return ""
+}
+
+func CurrentUser() string {
+	r, err := GithubApi("GET", "/user", nil)
+	if err != nil {
+		log.Fatalf("get current user: %s", err)
+	}
+	return r["login"].(string)
 }
 
 func GithubApi(method string, uri string, requestBody map[string]interface{}) (map[string]interface{}, error) {

@@ -5,57 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 )
-
-func Run(name string, args ...string) error {
-	fmt.Printf("+ %s %s\n", name, strings.Join(args, " "))
-	c := exec.Command(name, args...)
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	c.Stdin = os.Stdin
-	return c.Run()
-}
-
-func CurrentBranch() string {
-	branch, err := exec.Command("git", "symbolic-ref", "HEAD").CombinedOutput()
-	if err != nil {
-		log.Fatalf("git symbolic-ref HEAD: %s", err)
-	}
-	return strings.TrimSpace(strings.TrimPrefix(string(branch), "refs/heads/"))
-}
-
-func GithubRepo() string {
-	buf, err := exec.Command("git", "config", "--local", "--get", "github.repo").CombinedOutput()
-	if err == nil {
-		return string(buf)
-	}
-
-	buf, err = exec.Command("git", "config", "--local", "--get", "remote.origin.url").CombinedOutput()
-	if err == nil {
-		matches := regexp.MustCompile(`^git@github.com:(.*).git\n$`).FindAllStringSubmatch(string(buf), -1)
-		if matches != nil && len(matches) > 0 {
-			return matches[0][1]
-		}
-	}
-
-	fmt.Printf("Could not determine the github repo name for this repo.\n")
-	fmt.Printf("Please specify it with something like:\n")
-	fmt.Printf("git config --local --set github.repo YOURUSER/YOURREPO\n")
-	os.Exit(1)
-	return ""
-}
-
-func CurrentUser() string {
-	r, err := GithubApi("GET", "/user", nil)
-	if err != nil {
-		log.Fatalf("get current user: %s", err)
-	}
-	return r["login"].(string)
-}
 
 // New creates a new issue. If `arg` is numeric, it refers to an existing issue
 // number. If it is a string it is the subject of a new issue to be created.

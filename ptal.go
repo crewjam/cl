@@ -4,26 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
 type M map[string]interface{}
-
-func CurrentIssue() int64 {
-	branch := CurrentBranch()
-
-	if !regexp.MustCompile(`^pr-\d+$`).MatchString(branch) {
-		fmt.Printf("Oops! It looks like you are not in a PR branch\n")
-		fmt.Printf("I cowardly refuse to work in a branch I don't understand\n")
-		fmt.Printf("Current branch: %s", branch)
-		os.Exit(1)
-	}
-
-	issueNumber, _ := strconv.ParseInt(strings.TrimPrefix(branch, "pr-"), 10, 32)
-	return issueNumber
-}
 
 func Ptal() {
 	issueNumber := CurrentIssue()
