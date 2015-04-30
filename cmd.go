@@ -14,7 +14,9 @@ Subcommands:
   new    - create a new change and switch to it
   squish - combine commits
   rebase - combine commits using rebase
+  save   - commit all changes with a generic commit message
   ptal   - mark a PR as ready for review
+  merge  - merge a PR into the master
 
 `, os.Args[0])
 }
@@ -40,8 +42,12 @@ func main() {
 		Rebase()
 		os.Exit(0)
 	case "save":
+		Save()
+		os.Exit(0)
 	case "pull":
 	case "merge":
+		Merge()
+		os.Exit(0)
 	case "ptal":
 		Ptal()
 	case "help":
