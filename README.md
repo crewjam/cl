@@ -1,68 +1,57 @@
-# cl is a tool to make github pull requests act more like gerrit.
+# cl is a tool for working with GitHub pull requests
 
+This tool assumes you have a workflow where commits generally enter the master
+branch via pull requests. 
 
-## Create a new CL:
+Note: "cl" == "change list" which is the term 
+[Gerrit](http://lmgtfy.com/?q=gerrit+code+review) uses to describe a related
+set of changes.
 
-    $ cl new
-    7q8
+To start working on an existing issue:
 
-What this does:
-
-    $ git branch 7q8
-    $ git checkout 7q8
-
-## Create a PR:
-
-    $ git add ...
-    $ git commit ...
-    $ cl push
-
-What this does:
-
-    $ git push 7q8 
-    $ curl ... api.github.com/repos/xxx/yyy/pulls -d '{title: ..., head: 7q8, base: master}'
-
-## Review state
-
-Review state is encoded in the topic of the pull request.
-
-    # Review state (please merge with `cl merge`)
-    R: ross +1
-    R: jim
-    R: cathy -1
-    V: lint +1
-    V: test +1
-
-## Mark a review:
-
-   cl 7q8 -1
-
-## Merge a PR:
-
-    cl merge
-
-What this does:
-
-  - in a fresh repo
-  - check that the merge criteria are met
-  - squish the commits into one, rewriting the commit message
-  - merge
-
-
-## Show state:
-
-    cl open
-
-
- 
-
-
-
-A random CL name is [0-9a-z]{3} (which is > 46k changes)
-
-Things to check:
-
- - CLs that depend on other CLs
-
+    $ cl new 42
     
+To start working creating a new issue / pull request:
 
+    $ cl new "my fancy new feature"
+    
+This will create a new issue to track the change, and a branch named 'pr-XXX' 
+where *XXX* is your issue number.
+ 
+You can commit away as normal, pushing changes as you go. Then when you are 
+ready, you can create the pull request and ask for review:
+ 
+    $ cl ptal
+     
+This creates a pull request and adds the "needs-review" label.
+
+You may wish to merge you changes into fewer commits. To do this you can either
+squish or rebase. 
+
+    $ cl squish
+    
+This command resets ``.git`` so all the changes in your branch look like they 
+are uncommitted against the master. Then it invokes commit and you can commit
+them as one commit. Finally you'll need to push to the origin with the 
+``--force`` flag (because you are "rewriting history").
+
+    $ cl rebase
+    
+This works similarly. It invokes ``git rebase -i`` between the master
+and your branch.
+
+When all is ready to go, you are ready to merge:
+
+    $ cl merge
+    
+This checks that:
+
+  - your code can be fast-forwarded (that you don't need to rebase your branch)
+  - that you've got a ``:+1:`` or ``lgtm`` in your PR comment.
+  - that there is at least one CI service commenting on your commit and that it 
+    is a success.
+
+If all this is true, then it merges your branch, pushes the code and closes the
+branch and pull request.
+
+Happy Hacking!
