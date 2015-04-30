@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // New creates a new issue. If `arg` is numeric, it refers to an existing issue
