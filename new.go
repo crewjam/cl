@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // New creates a new issue. If `arg` is numeric, it refers to an existing issue
@@ -14,14 +15,15 @@ import (
 // If it is empty or not present, then we prompt you to type something.
 func New(arg string) {
 	if CurrentBranch() != "master" {
-		fmt.Printf("The current branch is: %#v", CurrentBranch())
-		fmt.Printf("You probably want to be in master to call new.\n")
+		fmt.Printf("The current branch is: %#v\n", CurrentBranch())
+		fmt.Printf("You need to switch to master to call new.\n")
 		fmt.Printf("Switch to master? (enter to continue, Ctrl+C to abort)\n")
 		_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
 
 		if err := Run("git", "checkout", "master"); err != nil {
 			os.Exit(1)
 		}
+		fmt.Printf("\n")
 	}
 
 	issueNumber, err := strconv.ParseInt(arg, 10, 32)
@@ -51,6 +53,10 @@ func New(arg string) {
 
 	branchName := fmt.Sprintf("pr-%d", issueNumber)
 	if err := Run("git", "checkout", "-b", branchName); err != nil {
+		os.Exit(1)
+	}
+
+	if err := Run("git", "push", "-u", "origin", branchName); err != nil {
 		os.Exit(1)
 	}
 
