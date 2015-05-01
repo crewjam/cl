@@ -15,17 +15,17 @@ To start working creating a new issue / pull request:
 
     $ cl new "my fancy new feature"
     
-This will create a new issue to track the change, and a branch named 'pr-XXX' 
-where *XXX* is your issue number.
+This will create a new issue to track the change, a branch with a single empty
+commit in it, and a pull request.
  
 You can commit away as normal, pushing changes as you go. Then when you are 
 ready, you can create the pull request and ask for review:
  
     $ cl ptal
      
-This creates a pull request and adds the "needs-review" label.
+This removes the `wip` label and adds the `review-needed` label.
 
-You may wish to merge you changes into fewer commits. To do this you can either
+You may wish to merge your changes into fewer commits. To do this you can either
 squish or rebase. 
 
     $ cl squish

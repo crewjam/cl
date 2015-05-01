@@ -9,7 +9,7 @@ import (
 )
 
 func Squish() {
-	_ = CurrentIssue()
+	_ = EnsurePullRequestBranch()
 
 	fmt.Printf("The following changes will be squished into a single commit:\n")
 	cmd := exec.Command("git", "--no-pager", "log", "--format=format:%h %s", "master..HEAD")

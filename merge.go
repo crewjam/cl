@@ -1,19 +1,25 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 )
 
 func Merge() {
-	issueNumber := CurrentIssue()
 	branchName := CurrentBranch()
-	fmt.Printf("merging issue %d to master", issueNumber)
+	pullRequest, err := GetPullRequestForBranch(branchName)
+	if err != nil {
+		log.Fatalf("get pull request: %s", err)
+	}
+	if pullRequest == nil {
+		fmt.Printf("cannot find a pull request for branch %s\n", branchName)
+		os.Exit(1)
+	}
+
+	fmt.Printf("merging PR %d to master\n.", pullRequest.Number)
 
 	var commitProblems = []string{}
 
@@ -29,7 +35,6 @@ func Merge() {
 	if err != nil {
 		log.Fatalf("get branch: %s", err)
 	}
-	fmt.Printf("%#v\n", branchInfo)
 	remoteCurrentSHA := branchInfo["commit"].(map[string]interface{})["sha"].(string)
 	if currentSHA != remoteCurrentSHA {
 		commitProblems = append(commitProblems,
@@ -38,7 +43,7 @@ func Merge() {
 	}
 
 	// Check for a +1
-	hasApproval, err := HasApproval(issueNumber)
+	hasApproval, err := HasApproval(pullRequest.Number)
 	if err != nil {
 		log.Fatalf("get issue comments: %s", err)
 	}
@@ -87,35 +92,10 @@ func Merge() {
 	}
 
 	// Remove the wip, needs-refactor and needs-review labels
-	func() {
-		issueResp, err := GithubApi("GET", fmt.Sprintf("/repos/%s/issues/%d",
-			GithubRepo(), issueNumber), nil)
-		if err != nil {
-			log.Printf("fetch issue: %s", err)
-			return
-		}
-		// adjust labels: remove the needs-refactor, wip labels, add needs-review
-		newLabels := []string{}
-		for _, l := range issueResp["labels"].([]interface{}) {
-			label := l.(map[string]interface{})
-			if label["name"] == "wip" {
-				continue
-			}
-			if label["name"] == "needs-refactor" {
-				continue
-			}
-			if label["name"] == "needs-review" {
-				continue
-			}
-			newLabels = append(newLabels, label["name"].(string))
-		}
-		_, err = GithubApi("PATCH",
-			fmt.Sprintf("/repos/%s/issues/%d", GithubRepo(), issueNumber),
-			M{"labels": newLabels})
-		if err != nil {
-			fmt.Printf("updating issue labels: %s", err)
-		}
-	}()
+	if err := PatchLabels(pullRequest.Number, []string{},
+		[]string{"wip", "needs-refactor", "needs-review"}); err != nil {
+		fmt.Printf("updating issue labels: %s", err)
+	}
 
 	// Delete the branch remotely
 	_, _ = GithubApi("DELETE", fmt.Sprintf("/repos/%s/git/refs/heads/%s",
@@ -145,32 +125,22 @@ type GithubIssueComment struct {
 }
 
 func HasApproval(issueNumber int64) (bool, error) {
-	req, err := http.NewRequest("GET",
-		fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/comments", GithubRepo(), issueNumber),
-		nil)
-	if err != nil {
-		return false, err
-	}
-	req.Header.Set("Authorization", "token "+GithubToken())
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, err
-	}
-	if resp.StatusCode > 400 {
-		return false, err
-	}
-
 	comments := []GithubIssueComment{}
-	if err := json.NewDecoder(resp.Body).Decode(&comments); err != nil {
+	err := GithubApiGetTyped(
+		fmt.Sprintf("/repos/%s/issues/%d/comments", GithubRepo(), issueNumber),
+		&comments)
+	if err != nil {
 		return false, err
 	}
-
+	fmt.Printf("comment: %#v\n", comments)
 	for _, comment := range comments {
 		if strings.Contains(comment.Body, ":+1:") {
 			return true, nil
 		}
 		if strings.Contains(comment.Body, "lgtm") {
+			return true, nil
+		}
+		if strings.Contains(comment.Body, "LGTM") {
 			return true, nil
 		}
 	}

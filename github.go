@@ -65,6 +65,28 @@ func CurrentUser() string {
 	return r["login"].(string)
 }
 
+func GithubApiGetTyped(uri string, response interface{}) error {
+	req, err := http.NewRequest("GET",
+		"https://api.github.com"+uri, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "token "+GithubToken())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode > 400 {
+		return err
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
+		return err
+	}
+	return nil
+}
+
 func GithubApi(method string, uri string, requestBody map[string]interface{}) (map[string]interface{}, error) {
 	var requestBodyBuf io.Reader
 	if requestBody != nil {
@@ -95,4 +117,32 @@ func GithubApi(method string, uri string, requestBody map[string]interface{}) (m
 		return nil, err
 	}
 	return body, nil
+}
+
+func PatchLabels(issueNumber int64, addLabels []string, removeLabels []string) error {
+	issueResp, err := GithubApi("GET",
+		fmt.Sprintf("/repos/%s/issues/%d", GithubRepo(), issueNumber), nil)
+	if err != nil {
+		return err
+	}
+
+	newLabels := addLabels
+	for _, l := range issueResp["labels"].([]interface{}) {
+		label := l.(map[string]interface{})
+
+		include := true
+		for _, removeLabel := range removeLabels {
+			if label["name"] == removeLabel {
+				include = false
+				break
+			}
+		}
+		if include {
+			newLabels = append(newLabels, label["name"].(string))
+		}
+	}
+	_, err = GithubApi("PATCH",
+		fmt.Sprintf("/repos/%s/issues/%d", GithubRepo(), issueNumber),
+		M{"labels": newLabels})
+	return err
 }

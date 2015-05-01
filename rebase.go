@@ -6,7 +6,7 @@ import (
 )
 
 func Rebase() {
-	_ = CurrentIssue()
+	_ = EnsurePullRequestBranch()
 
 	masterRevision := RevParse("master")
 	if err := Run("git", "rebase", "-i", masterRevision); err != nil {
