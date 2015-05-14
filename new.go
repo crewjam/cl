@@ -102,7 +102,7 @@ func New(arg string) {
 		if err != nil {
 			log.Fatalf("create pull request: %s", err)
 		}
-		issueNumber = pullReq["number"].(int64)
+		issueNumber = int64(pullReq["number"].(float64))
 	}
 
 	// adjust labels: add wip, remove needs-{review,refactor}
