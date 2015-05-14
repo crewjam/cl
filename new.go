@@ -54,7 +54,7 @@ func New(arg string) {
 
 	branchName := strings.TrimSpace(strings.ToLower(issueTitle))
 	branchName = regexp.MustCompile(`\s+`).ReplaceAllString(branchName, "-")
-	branchName = regexp.MustCompile(`[^A-Za-z0-9]`).ReplaceAllString(branchName, "")
+	branchName = regexp.MustCompile(`[^A-Za-z0-9\-]`).ReplaceAllString(branchName, "")
 	if len(branchName) < 3 {
 		fmt.Printf("branch name %#v seems too short\n", branchName)
 		os.Exit(1)
