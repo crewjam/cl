@@ -30,7 +30,7 @@ func githubToken() string {
 		fmt.Printf("You are missing a GitHub authorization token in your git configuration\n")
 		fmt.Printf("Get a token from https://github.com/settings/tokens/new\n")
 		fmt.Printf("Place it in your git configuration with something like:\n")
-		fmt.Printf("git config --set github.token YOURTOKEN\n")
+		fmt.Printf("git config --add github.token YOURTOKEN\n")
 		os.Exit(1)
 	}
 	return token
@@ -39,7 +39,7 @@ func githubToken() string {
 func GithubRepo() string {
 	buf, err := exec.Command("git", "config", "--local", "--get", "github.repo").CombinedOutput()
 	if err == nil {
-		return string(buf)
+		return strings.TrimSpace(string(buf))
 	}
 
 	buf, err = exec.Command("git", "config", "--local", "--get", "remote.origin.url").CombinedOutput()
@@ -48,11 +48,15 @@ func GithubRepo() string {
 		if matches != nil && len(matches) > 0 {
 			return matches[0][1]
 		}
+		matches = regexp.MustCompile(`^https://github.com/(.*)\n$`).FindAllStringSubmatch(string(buf), -1)
+		if matches != nil && len(matches) > 0 {
+			return matches[0][1]
+		}
 	}
 
 	fmt.Printf("Could not determine the github repo name for this repo.\n")
 	fmt.Printf("Please specify it with something like:\n")
-	fmt.Printf("git config --local --set github.repo YOURUSER/YOURREPO\n")
+	fmt.Printf("git config --local --add github.repo YOURUSER/YOURREPO\n")
 	os.Exit(1)
 	return ""
 }
