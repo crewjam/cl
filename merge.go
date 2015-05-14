@@ -2,13 +2,18 @@ package main
 
 import (
 	"fmt"
+	"flag"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-func Merge() {
+func Merge(arguments []string) {
+	flagSet := flag.NewFlagSet("cl-merge", flag.ExitOnError)
+	var forceFlag = flagSet.Bool("force", false, "force a merge even when there are merge problems")
+	flagSet.Parse(arguments)
+
 	branchName := CurrentBranch()
 	pullRequest, err := GetPullRequestForBranch(branchName)
 	if err != nil {
@@ -69,7 +74,8 @@ func Merge() {
 	// Is is true iff the merge-base is also the current master
 	if RevParse("master") != MergeBase("HEAD", "master") {
 		commitProblems = append(commitProblems,
-			fmt.Sprintf("this branch meets master at %s, but the latest master is %s. Rebase needed?",
+			fmt.Sprintf("this branch meets master at %s, but the latest " +
+				"master is %s. `git rebase master` needed?",
 				MergeBase("HEAD", "master")[:12], RevParse("master")[:12]))
 	}
 
@@ -78,7 +84,17 @@ func Merge() {
 		for _, cp := range commitProblems {
 			fmt.Printf(" - %s\n", cp)
 		}
-		os.Exit(1)
+		fmt.Printf("\n")
+		if !*forceFlag {
+			fmt.Printf("In case of emergency, you can add -force to let the merge continue.\n")
+			os.Exit(1)
+		} else {
+			fmt.Printf("Commit problems ignored by -force flag.\n")
+		}
+	}
+
+	if len(commitProblems) == 0 && *forceFlag {
+		fmt.Printf("Don't use -force unless you really need it.\n")
 	}
 
 	if err := Run("git", "checkout", "master"); err != nil {

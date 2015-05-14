@@ -46,7 +46,7 @@ func main() {
 		os.Exit(0)
 	case "pull":
 	case "merge":
-		Merge()
+		Merge(os.Args[2:])
 		os.Exit(0)
 	case "ptal":
 		Ptal()
