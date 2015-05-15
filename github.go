@@ -48,6 +48,10 @@ func GithubRepo() string {
 		if matches != nil && len(matches) > 0 {
 			return matches[0][1]
 		}
+		matches = regexp.MustCompile(`^https://github.com/(.*).git\n$`).FindAllStringSubmatch(string(buf), -1)
+		if matches != nil && len(matches) > 0 {
+			return matches[0][1]
+		}
 		matches = regexp.MustCompile(`^https://github.com/(.*)\n$`).FindAllStringSubmatch(string(buf), -1)
 		if matches != nil && len(matches) > 0 {
 			return matches[0][1]
